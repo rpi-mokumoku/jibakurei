@@ -1,0 +1,78 @@
+version: '3.2'
+#volumes:
+#  medamaoyaji-volume:
+#    driver: local
+#    driver_opts:
+#      mountpoint: "${SERVICE_HOME}medamaoyaji/mysql"
+
+services:
+  nginx:
+    image: nginx 
+    container_name: nginx
+    volumes:
+      - "${SERVICE_HOME}nginx/conf.d:/etc/nginx/conf.d"
+      - "${SERVICE_HOME}nginx/cert:/usr/local/nginx/conf"
+      - "/etc/localtime:/etc/localtime:ro"
+    ports:
+      - "80:80"
+      - "443:443"
+    links:
+      - shaman
+      - itako
+
+  shaman:
+    container_name: shaman
+    image: node_vpnc
+    volumes:
+      - "${SERVICE_HOME}shaman:/var/app"
+      - "/etc/localtime:/etc/localtime:ro"
+    working_dir: /var/app
+    command: [sh, -c, npm install && npm start && openvpn shaman.ovpn]
+    privileged: true
+    links:
+      - medamaoyaji
+
+  itako:
+    container_name: itako
+    image: node
+    volumes:
+      - "${SERVICE_HOME}itako:/var/app"
+      - "/etc/localtime:/etc/localtime:ro"
+    working_dir: /var/app
+    command: [sh, -c, npm install && npm start]
+    privileged: true
+    links:
+      - shaman
+      - medamaoyaji
+
+  medamaoyaji:
+    container_name: medamaoyaji
+    image: mysql
+    volumes:
+      - "${SERVICE_HOME}medamaoyaji/conf.d:/etc/mysql/conf.d"
+      - "${SERVICE_HOME}medamaoyaji/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d"
+      - "${SERVICE_HOME}medamaoyaji/mysql:/var/lib/mysql"
+      - "/etc/localtime:/etc/localtime:ro"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+
+
+#  pritunl:
+#    image: pritunl 
+#    container_name: pritunl
+#    volumes:
+#      - "${SERVICE_HOME}pritunl:/var/lib/mongo:ro"
+#    ports:
+#      - "1150:1150/udp"
+#    privileged: true
+##    command: /sbin/init
+#    command: sh -c 'exec /sbin/init && systemctl start mongod pritunl && systemctl enable mongod pritunl'
+# docker run -d --name=pritunl -p 1150:1150/udp pritnl sh -c 'exec /sbin/init && systemctl start mongod pritunl && systemctl enable mongod pritunl'
+
+#  strage:
+#    container_name: strage 
+#    image: hypriot/armhf-busybox
+#    volumes:
+#      - "medamaoyaji-volume:/var/lib/mysql"
+
+

@@ -1,0 +1,73 @@
+version: '3.2'
+#volumes:
+#  medamaoyaji-volume:
+#    driver: local
+#    driver_opts:
+#      mountpoint: "${SERVICE_HOME}medamaoyaji/mysql"
+
+services:
+  proxy:
+    #build: ${SERVICE_HOME}proxy
+    tty: true
+    image: proxy
+    container_name: proxy
+    ports:
+      - "443:443"
+    volumes:
+      - '${SERVICE_HOME}proxy/letsencrypt:/etc/letsencrypt'
+    depends_on:
+      - "shaman"
+      - "itako"
+      - "openvpn"
+    command: ["wait-for-it.sh", "shaman:80", "--", "./wait-for-it.sh", "itako:80", "--", "./wait-for-it.sh", "openvpn:80"]
+
+  shaman:
+    container_name: shaman
+    image: node
+    volumes:
+      - "${SERVICE_HOME}shaman:/var/app"
+    working_dir: /var/app
+    command: [sh, -c, npm install && npm start]
+    links:
+      - medamaoyaji
+      - openvpn 
+
+  itako:
+    container_name: itako
+    image: node
+    volumes:
+      - "${SERVICE_HOME}itako:/var/app"
+    working_dir: /var/app
+    command: [sh, -c, npm install && npm start]
+    links:
+      - shaman
+      - medamaoyaji
+
+  medamaoyaji:
+    container_name: medamaoyaji
+    image: mysql
+    volumes:
+      - "${SERVICE_HOME}medamaoyaji/conf.d:/etc/mysql/conf.d"
+      - "${SERVICE_HOME}medamaoyaji/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d"
+      - "${SERVICE_HOME}medamaoyaji/mysql:/var/lib/mysql"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+
+  openvpn:
+    image: jippi/pritunl 
+    container_name: openvpn
+    volumes:
+      - "${SERVICE_HOME}openvpn:/var/lib/pritunl"
+    ports:
+      - "1150:1150"
+      - "1194:1194/udp"
+    privileged: true
+
+
+#  strage:
+#    container_name: strage 
+#    image: hypriot/armhf-busybox
+#    volumes:
+#      - "medamaoyaji-volume:/var/lib/mysql"
+
+
